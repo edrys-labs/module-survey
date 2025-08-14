@@ -1,0 +1,471 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
+
+/* Start screen styles */
+.start-screen {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.button-container {
+    text-align: center;
+    background: white;
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    min-width: 300px;
+}
+
+.button-container h2 {
+    margin-bottom: 30px;
+    color: #333;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.survey-btn {
+    display: block;
+    width: 100%;
+    padding: 15px 25px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.survey-btn.primary {
+    background: #e74c3c;
+    color: white;
+}
+
+.survey-btn.primary:hover {
+    transform: translateY(-2px);
+    background: #c0392b;
+    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+}
+
+.survey-btn.secondary {
+    background: #27ae60;
+    color: white;
+}
+
+.survey-btn.secondary:hover {
+    transform: translateY(-2px);
+    background: #229954;
+    box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+}
+
+/* Make the survey container fill the entire viewport */
+#surveyContainer {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+/* Results container */
+#resultsContainer {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    padding: 20px;
+}
+
+/* Charts container */
+#chartsContainer {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    padding: 20px;
+}
+
+/* Field selection container */
+#fieldSelectionContainer {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    padding: 20px;
+}
+
+/* Back button for results view */
+.back-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    padding: 10px 20px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    z-index: 1000;
+}
+
+.back-btn:hover {
+    background: #c0392b;
+}
+
+/* Generate Charts button */
+.generate-charts-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    z-index: 1000;
+}
+
+.generate-charts-btn:hover {
+    background: #2980b9;
+}
+
+/* Results content styling */
+#resultsContainer h2, #chartsContainer h2, #fieldSelectionContainer h2 {
+    color: #ecf0f1;
+    text-align: center;
+    margin-bottom: 30px;
+    font-weight: 600;
+}
+
+#resultsContainer .result-item {
+    background: white;
+    margin-bottom: 20px;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    border-left: 4px solid #e74c3c;
+}
+
+#resultsContainer .result-item h3 {
+    color: #e74c3c;
+    margin-bottom: 10px;
+    font-size: 18px;
+}
+
+#resultsContainer .result-item p {
+    color: #555;
+    margin-bottom: 8px;
+}
+
+#resultsContainer .result-item strong {
+    color: #333;
+}
+
+#resultsContainer details {
+    background: #2c3e50;
+}
+
+#resultsContainer details summary {
+    color: #e74c3c;
+    background: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 5px 0;
+    border-radius: 4px;
+}
+
+#resultsContainer details summary:hover {
+    background: rgba(231, 76, 60, 0.1);
+    padding: 5px 8px;
+}
+
+#resultsContainer pre {
+    background: #f8f9fa;
+    padding: 15px;
+    margin-top: 10px;
+    border-radius: 6px;
+    overflow-x: auto;
+    border: 1px solid #e9ecef;
+    font-size: 14px;
+    color: #495057;
+}
+
+#resultsContainer .no-results {
+    text-align: center;
+    background: white;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    color: #666;
+    font-size: 16px;
+}
+
+/* Field selection styles */
+.field-selection-container {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    max-width: 800px;
+    margin: 60px auto 0 auto;
+}
+
+.field-selection-container h2 {
+    color: #2c3e50 !important;
+    margin-bottom: 20px;
+    font-size: 24px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.field-selection-container p {
+    color: #666;
+    margin-bottom: 25px;
+    line-height: 1.6;
+    text-align: center;
+    font-size: 14px;
+}
+
+.field-list {
+    margin-bottom: 30px;
+}
+
+.field-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.field-item:hover {
+    background: #e3f2fd;
+    border-color: #e74c3c;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(231, 76, 60, 0.2);
+}
+
+.field-item input[type="checkbox"] {
+    margin-right: 15px;
+    transform: scale(1.3);
+    accent-color: #e74c3c;
+}
+
+.field-item label {
+    flex: 1;
+    cursor: pointer;
+    color: #2c3e50;
+    font-weight: 500;
+    font-size: 15px;
+}
+
+.field-info {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin-left: auto;
+    padding-left: 15px;
+    font-style: italic;
+}
+
+.selection-actions {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+    justify-content: center;
+}
+
+.select-all-btn, .select-none-btn {
+    padding: 5px 10px;
+    border: 2px solid #e74c3c;
+    background: transparent;
+    color: #e74c3c;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.select-all-btn:hover {
+    background: #e74c3c;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+}
+
+.select-none-btn {
+    border-color: #27ae60;
+    color: #27ae60;
+}
+
+.select-none-btn:hover {
+    background: #27ae60;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);
+}
+
+.generate-selected-charts-btn {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 20px;
+}
+
+.generate-selected-charts-btn:hover {
+    background: linear-gradient(135deg, #c0392b 0%, #a93226 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+}
+
+.generate-selected-charts-btn:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Chart styles */
+.chart-container {
+    background: white;
+    margin-bottom: 30px;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    border-left: 4px solid #3498db;
+}
+
+.chart-container h3 {
+    color: #3498db;
+    margin-bottom: 20px;
+    font-size: 18px;
+    text-align: center;
+}
+
+.chart-wrapper {
+    position: relative;
+    height: 400px;
+    margin-bottom: 20px;
+}
+
+.no-charts {
+    text-align: center;
+    background: white;
+    padding: 40px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    color: #7f8c8d;
+    font-size: 16px;
+    max-width: 500px;
+    margin: 60px auto 0 auto;
+}
+
+/* Pagination styles */
+.pagination-info {
+    text-align: center;
+    color: #ecf0f1;
+    margin-bottom: 20px;
+    font-size: 14px;
+    font-style: italic;
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 30px;
+    padding: 20px 0;
+}
+
+.page-numbers {
+    display: flex;
+    gap: 2px;
+    margin: 0 8px;
+}
+
+.pagination-btn {
+    padding: 8px 12px;
+    background: white;
+    color: #2c3e50;
+    border: 2px solid #e74c3c;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    min-width: 40px;
+}
+
+.pagination-btn:hover {
+    background: #e74c3c;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(231, 76, 60, 0.3);
+}
+
+.pagination-btn.active {
+    background: #e74c3c;
+    color: white;
+    cursor: default;
+}
+
+.pagination-btn.active:hover {
+    transform: none;
+    box-shadow: none;
+}

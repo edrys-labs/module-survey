@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Lab Survey</title>
+    <meta
+      name="description"
+      content="A survey module for Edrys Labs, allowing users to submit feedback and suggestions."
+    />
+    <meta name="show-in" content="station" />
+    <meta 
+      name="module-config" 
+      content="{
+        'stationConfig': {
+          'survey': {
+            'type': code-area,
+            'hint': 'Enter your survey configuration here (JSON format)',
+          },
+        },
+      }" 
+    />
+
+    <script src="https://edrys-labs.github.io/module/edrys.js"></script>
+
+    <!-- Dexie.js for IndexedDB -->
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+
+    <script
+      defer
+      src="https://edrys-labs.github.io/module/vendor/alpine.min.js"
+    ></script>
+
+    <link
+      rel="stylesheet"
+      href="https://edrys-labs.github.io/module/vendor/water.min.css"
+    />
+
+    <link rel="stylesheet" href="./style.css" />
+
+    <!-- SurveyJS Core and UI -->
+    <link href="https://unpkg.com/survey-core/survey-core.min.css" type="text/css" rel="stylesheet">
+    <script type="text/javascript" src="https://unpkg.com/survey-core/survey.core.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/survey-js-ui/survey-js-ui.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/survey-core/themes/sharp-light.min.js"></script>
+
+    <!-- Chart.js for creating charts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  </head>
+  <body>
+    <div id="startScreen" class="start-screen">
+      <div class="button-container">
+        <h2>Your Feedback</h2>
+        <button id="startSurveyBtn" class="survey-btn primary">Start Survey</button>
+        <button id="loadResultsBtn" class="survey-btn secondary" style="display: none;">Load Survey Results</button>
+      </div>
+    </div>
+    <div id="surveyContainer" style="display: none;"></div>
+    <div id="resultsContainer" style="display: none;"></div>
+    <div id="fieldSelectionContainer" style="display: none;"></div>
+    <div id="chartsContainer" style="display: none;"></div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
