@@ -30,19 +30,19 @@ The module expects survey configuration in `Edrys.module.stationConfig.survey` a
 
   ```` yaml
   survey: |
-  {
-    "title": "Student Feedback",
-    "pages": [
-      {
-        "name": "page1",
-        "elements": [
-          { "type": "text", "name": "name", "title": "Your Name:" },
-          { "type": "rating", "name": "experience", "title": "Rate your experience", "rateMax": 5 },
-          { "type": "comment", "name": "suggestions", "title": "Any suggestions?" }
+    {
+        "title": "Student Feedback",
+        "pages": [
+        {
+            "name": "page1",
+            "elements": [
+            { "type": "text", "name": "name", "title": "Your Name:" },
+            { "type": "rating", "name": "experience", "title": "Rate your experience", "rateMax": 5 },
+            { "type": "comment", "name": "suggestions", "title": "Any suggestions?" }
+            ]
+        }
         ]
-      }
-    ]
-  }
+    }
   ````
 
 For more details on SurveyJS configuration, refer to the [SurveyJS documentation](https://surveyjs.io/form-library/documentation/get-started-html-css-javascript).
