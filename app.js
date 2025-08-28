@@ -488,10 +488,9 @@ window.goToPage = goToPage;
 
 
 Edrys.onReady(() => {
-    /*const debug = Edrys.importDebug();
-    Edrys.enableModuleDebug();
-    //Edrys.disableModuleDebug();
-    debug('Survey Module Ready');*/
+    /*const dbg = Edrys.importDebug();
+    Edrys.debug = false;
+    dbg('Survey Module Ready');*/
     console.log("Survey module is ready");
 
     // Show load results button only for station role
