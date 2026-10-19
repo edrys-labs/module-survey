@@ -7,29 +7,34 @@
     <title>Lab Survey</title>
     <meta
       name="description"
-      content="A survey module for Edrys Labs, allowing users to submit feedback and suggestions."
+      content="A SurveyJS survey for station rooms: everyone in the room can answer, the station stores the answers and charts them. <a href='https://github.com/edrys-labs/module-survey' target='_blank'>GitHub</a>"
     />
     <meta name="show-in" content="station" />
+    <meta name="icon" content="mdi-clipboard-text-outline" />
     <meta
       name="module-config"
       content="{
         'stationConfig': {
           'survey': {
-            'type': code-area,
-            'hint': 'Enter your survey configuration here (JSON format)',
+            'type': 'code-area',
+            'hint': 'Your survey as SurveyJS JSON (see surveyjs.io/create-free-survey)'
           },
           'allowRetake': {
             'type': 'boolean',
             'hint': 'Let a user take the survey again after submitting (Off: one answer per user)'
-          },
-        },
+          }
+        }
       }"
     />
 
     <script src="https://edrys-labs.github.io/module/edrys.js"></script>
 
     <!-- Dexie.js for IndexedDB -->
-    <script src="https://unpkg.com/dexie@4.4.6/dist/dexie.js"></script>
+    <script
+      src="https://unpkg.com/dexie@4.4.6/dist/dexie.js"
+      integrity="sha384-sCkAT2j+AZTFdO8/jKW00smf64uZeyOZ4vEJdzqPVASnK8oJGx+87g6GvhWY9448"
+      crossorigin="anonymous"
+    ></script>
 
     <link
       rel="stylesheet"
@@ -41,14 +46,39 @@
     />
 
     <!-- SurveyJS Core and UI, light and dark theme (picked by the OS preference) -->
-    <link href="https://unpkg.com/survey-core@2.5.44/survey-core.min.css" type="text/css" rel="stylesheet">
-    <script type="text/javascript" src="https://unpkg.com/survey-core@2.5.44/survey.core.min.js"></script>
-    <script type="text/javascript" src="https://unpkg.com/survey-js-ui@2.5.44/survey-js-ui.min.js"></script>
-    <script type="text/javascript" src="https://unpkg.com/survey-core@2.5.44/themes/default-light.min.js"></script>
-    <script type="text/javascript" src="https://unpkg.com/survey-core@2.5.44/themes/default-dark.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/survey-core@2.5.44/survey-core.min.css"
+      integrity="sha384-wB+G4wKAGGMOFdS4/XogiaJ+M1cb+RqFIbFlmYS0Z9HzMqjh0UyN2r7omvwIGX/K"
+      crossorigin="anonymous"
+    />
+    <script
+      src="https://unpkg.com/survey-core@2.5.44/survey.core.min.js"
+      integrity="sha384-18PuW0vFFCpuwL+scF7blD9foucIXPgxuA5t6DSGhbJLFZBlmB0QUwKCDXOt6nZ/"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/survey-js-ui@2.5.44/survey-js-ui.min.js"
+      integrity="sha384-g/0QNG4+C36pAjsfDJPZUrnJFFVDsafA6RpPl6/Mx3XNF/PmrWtbtxls34y41Dgq"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/survey-core@2.5.44/themes/default-light.min.js"
+      integrity="sha384-xyByTCpnvxuC0csPhI+mIJYTqZBR54A4DG1DQgEO7DUTRbbfMOF7MAPhILF9fI7P"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://unpkg.com/survey-core@2.5.44/themes/default-dark.min.js"
+      integrity="sha384-kwqv7GEDdvVlrCxfT6wMM24uD7rrzWSD26RlfUOgeiPDQuBcZXt67a22RJef5Dpr"
+      crossorigin="anonymous"
+    ></script>
 
     <!-- Chart.js for creating charts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"
+      integrity="sha384-XcdcwHqIPULERb2yDEM4R0XaQKU3YnDsrTmjACBZyfdVVqjh6xQ4/DCMd7XLcA6Y"
+      crossorigin="anonymous"
+    ></script>
 
     <link rel="stylesheet" href="./style.css" />
   </head>

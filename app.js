@@ -629,7 +629,7 @@ function displayResultsPage(page = 1) {
                 <div class="result-item">
                     <h3>Response ${globalIndex}</h3>
                     <p><strong>Timestamp:</strong> ${escapeHtml(new Date(result.timestamp).toLocaleString())}</p>
-                    <p><strong>ID:</strong> ${escapeHtml(result.id)}</p>
+                    <p><strong>From:</strong> ${escapeHtml(senderLabel(result))}</p>
                     <details>
                         <summary>View Result Data</summary>
                         <pre>${escapeHtml(JSON.stringify(result.data, null, 2))}</pre>
@@ -668,6 +668,12 @@ function displayResultsPage(page = 1) {
 
     resultsContainer.innerHTML = html;
     show("results");
+}
+
+// Who sent a result; results stored before `sender` was kept show "unknown"
+function senderLabel(result) {
+    if (!result.sender) return "unknown";
+    return result.senderRole ? `${result.sender} (${result.senderRole})` : result.sender;
 }
 
 function goToPage(page) {
@@ -815,6 +821,8 @@ async function storeResult(from, body) {
     // (older module versions) get a new entry per message.
     const hasId = typeof body.id === "string";
     const id = hasId ? `${username}-${body.id}` : `${username}-${stationName}-${Date.now()}`;
+    // The name edrys-Lite shows for the sender (a short id, or the station's name)
+    const sender = Edrys.liveClass?.users?.[from];
 
     try {
         await db.results.put({
@@ -822,7 +830,9 @@ async function storeResult(from, body) {
             timestamp: new Date(),
             data: body.data,
             classroomId: classroomId,
-            surveyId: surveyKey
+            surveyId: surveyKey,
+            sender: sender ? sender.displayName : undefined,
+            senderRole: sender ? sender.role : undefined
         });
         if (hasId) Edrys.sendMessage(SUBJECT_STORED, { id: body.id }, from);
     } catch (error) {
