@@ -81,8 +81,7 @@ Answers are stored **only in the station's browser** (IndexedDB of the module's 
 - they survive a reload of the station, but are lost when that browser's site data is cleared;
 - the teacher's and the students' browsers don't have them; there is no export yet;
 - editing the survey starts a new set of results (and everyone can answer again); the station lists only the
-  current survey's answers and says how many older ones it hides. Two survey modules in one class keep their
-  results apart.
+  current survey's answers. Two survey modules in one class keep their results apart.
 
 ## Messages
 

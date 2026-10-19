@@ -89,23 +89,29 @@
         <span id="badge" class="badge wait">loading…</span>
       </div>
       <div class="controls">
-        <button id="startSurveyBtn" disabled>
-          <span class="oi" data-glyph="pencil" aria-hidden="true"></span><span class="text">Loading…</span>
-        </button>
-        <button id="retryBtn" hidden>
-          <span class="oi" data-glyph="reload" aria-hidden="true"></span>Retry
-        </button>
         <button id="loadResultsBtn" hidden>
           <span class="oi" data-glyph="list-rich" aria-hidden="true"></span>Results
         </button>
       </div>
     </header>
-    <p id="startMessage" class="message" role="status"></p>
 
     <main>
+      <!-- the survey's intro card, centred in the frame -->
       <section id="startScreen">
-        <h2>Your Feedback</h2>
-        <p id="surveyIntro" class="muted"></p>
+        <div class="intro-card">
+          <h2 id="surveyTitle">Survey</h2>
+          <p id="surveyDescription" class="description" hidden></p>
+          <p id="surveySize" class="muted" hidden></p>
+          <p id="startMessage" class="message" role="status"></p>
+          <div class="intro-actions">
+            <button id="startSurveyBtn" class="primary" disabled>
+              <span class="oi" data-glyph="pencil" aria-hidden="true"></span><span class="text">Loading…</span>
+            </button>
+            <button id="retryBtn" hidden>
+              <span class="oi" data-glyph="reload" aria-hidden="true"></span>Retry
+            </button>
+          </div>
+        </div>
       </section>
       <section id="surveyContainer" hidden></section>
       <section id="resultsContainer" hidden></section>

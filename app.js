@@ -8,7 +8,9 @@ const loadResultsBtn = document.getElementById("loadResultsBtn");
 const retryBtn = document.getElementById("retryBtn");
 const startMessage = document.getElementById("startMessage");
 const badge = document.getElementById("badge");
-const surveyIntro = document.getElementById("surveyIntro");
+const surveyTitle = document.getElementById("surveyTitle");
+const surveyDescription = document.getElementById("surveyDescription");
+const surveySize = document.getElementById("surveySize");
 
 // One view at a time, toggled with `hidden`
 const views = {
@@ -35,15 +37,13 @@ db.version(1).stores({
     results: "id, timestamp, data, classroomId"
 });
 // Results are kept per survey (surveyId: hash of the survey JSON). Rows from
-// version 1 have no surveyId and only count as "other surveys".
+// version 1 have no surveyId and are not listed.
 db.version(2).stores({
     results: "id, timestamp, classroomId, [classroomId+surveyId]"
 });
 
 let currentSurvey = null;
 let currentResults = [];
-// Results in this classroom that belong to other surveys or earlier versions
-let otherResultsCount = 0;
 let activeCharts = [];
 let availableFields = {};
 // Field keys listed in the field selection; checkboxes refer to them by index
@@ -162,13 +162,44 @@ function setBadge(kind, text) {
     badge.textContent = text;
 }
 
-// SurveyJS theme by the OS preference, on the page's own background
+// SurveyJS colours taken from water.css's variables (and the module's --line), so the
+// survey looks like the rest of the page and follows its light/dark switch
+const SURVEY_COLORS = {
+    "--sjs-font-family": "inherit",
+    "--sjs-corner-radius": "6px",
+    "--sjs-general-backcolor": "var(--background-alt)",
+    "--sjs-general-backcolor-dark": "var(--background)",
+    "--sjs-general-backcolor-dim": "transparent",
+    "--sjs-general-backcolor-dim-light": "var(--background)",
+    "--sjs-general-backcolor-dim-dark": "var(--background)",
+    "--sjs-general-forecolor": "var(--text-main)",
+    "--sjs-general-forecolor-light": "var(--text-muted)",
+    "--sjs-general-dim-forecolor": "var(--text-main)",
+    "--sjs-general-dim-forecolor-light": "var(--text-muted)",
+    "--sjs-primary-backcolor": "var(--links)",
+    "--sjs-primary-backcolor-dark": "var(--links)",
+    "--sjs-primary-backcolor-light": "color-mix(in srgb, var(--links) 15%, transparent)",
+    "--sjs-primary-forecolor": "var(--background-body)",
+    "--sjs-primary-forecolor-light": "color-mix(in srgb, var(--background-body) 25%, transparent)",
+    "--sjs-secondary-backcolor": "var(--links)",
+    "--sjs-secondary-backcolor-light": "color-mix(in srgb, var(--links) 10%, transparent)",
+    "--sjs-secondary-backcolor-semi-light": "color-mix(in srgb, var(--links) 25%, transparent)",
+    "--sjs-border-default": "var(--line)",
+    "--sjs-border-light": "var(--line)",
+    "--sjs-border-inside": "var(--line)",
+    "--sjs-shadow-small": "0 0 0 1px var(--line)",
+    "--sjs-shadow-medium": "0 0 0 1px var(--line)",
+    "--sjs-shadow-inner": "inset 0 0 0 1px var(--line)",
+    "--sjs-font-surveytitle-color": "var(--text-bright)"
+};
+
+// SurveyJS's light or dark theme by the OS preference, in the page's colours
 function applySurveyTheme() {
     if (!currentSurvey) return;
     const theme = darkMode.matches ? SurveyTheme.DefaultDark : SurveyTheme.DefaultLight;
     currentSurvey.applyTheme({
         ...theme,
-        cssVariables: { ...theme.cssVariables, "--sjs-general-backcolor-dim": "transparent" }
+        cssVariables: { ...theme.cssVariables, ...SURVEY_COLORS }
     });
 }
 
@@ -178,13 +209,28 @@ function renderSurvey(surveyJson) {
 
     applySurveyTheme();
     survey.render(surveyContainer);
-    surveyIntro.textContent = [survey.title, survey.description].filter(Boolean).join(": ");
+    showIntro(survey);
 
     survey.onComplete.add((result) => {
         pending = { id: newSubmissionId(), data: result.data };
         saveSubmissionState();
         sendPending();
     });
+}
+
+// The intro card: the survey's title, description and size
+function showIntro(survey) {
+    surveyTitle.textContent = survey.title || "Survey";
+
+    surveyDescription.textContent = survey.description || "";
+    surveyDescription.hidden = !survey.description;
+
+    const questions = survey.getAllQuestions(true).length;
+    const pages = survey.visiblePages.length;
+    let size = questions === 1 ? "1 question" : `${questions} questions`;
+    if (pages > 1) size += ` on ${pages} pages`;
+    surveySize.textContent = size;
+    surveySize.hidden = questions === 0;
 }
 
 // djb2: a short, stable key for the configured survey. Also identifies its
@@ -610,11 +656,6 @@ function displayResultsPage(page = 1) {
     let html = viewBar("show-start", "Back", "Survey Results", chartsButton);
     html += `<p class="muted">Classroom: <code>${escapeHtml(Edrys.class_id)}</code></p>`;
 
-    if (otherResultsCount > 0) {
-        const answers = otherResultsCount === 1 ? "1 answer" : `${otherResultsCount} answers`;
-        html += `<p class="muted other-results">${answers} to other surveys or earlier versions of this survey in this classroom are not shown.</p>`;
-    }
-
     if (totalResults === 0) {
         html += '<p class="empty">No results for this survey yet.</p>';
     } else {
@@ -688,13 +729,8 @@ async function loadAndDisplayResults() {
             .where('[classroomId+surveyId]')
             .equals([currentClassroomId, surveyKey])
             .toArray();
-        const allCount = await db.results
-            .where('classroomId')
-            .equals(currentClassroomId)
-            .count();
 
         currentResults = results;
-        otherResultsCount = allCount - results.length;
 
         // Sort by timestamp in descending order (newest first)
         results.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
