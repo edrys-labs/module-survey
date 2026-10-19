@@ -7,6 +7,19 @@ const startSurveyBtn = document.getElementById("startSurveyBtn");
 const loadResultsBtn = document.getElementById("loadResultsBtn");
 const retryBtn = document.getElementById("retryBtn");
 const startMessage = document.getElementById("startMessage");
+const badge = document.getElementById("badge");
+const surveyIntro = document.getElementById("surveyIntro");
+
+// One view at a time, toggled with `hidden`
+const views = {
+    start: startScreen,
+    survey: surveyContainer,
+    results: resultsContainer,
+    fields: fieldSelectionContainer,
+    charts: chartsContainer
+};
+
+const darkMode = window.matchMedia("(prefers-color-scheme: dark)");
 
 // Message peers send when they complete the survey: { id, surveyId, data: <SurveyJS result> }
 const SUBJECT_COMPLETED = "surveyCompleted";
@@ -122,57 +135,50 @@ function chartColors(count) {
     return Array.from({ length: count }, (_, i) => `hsl(${Math.round(i * 360 / count)}, 65%, 55%)`);
 }
 
-function showStartScreen() {
-    startScreen.style.display = "flex";
-    surveyContainer.style.display = "none";
-    resultsContainer.style.display = "none";
-    fieldSelectionContainer.style.display = "none";
-    chartsContainer.style.display = "none";
+// Chart text, grid and slice borders follow water.css's light or dark theme
+function applyChartTheme() {
+    const page = getComputedStyle(document.body);
+    Chart.defaults.color = page.color;
+    Chart.defaults.borderColor = "rgba(127, 127, 127, 0.25)";
+    return {
+        background: page.backgroundColor,
+        bar: getComputedStyle(document.documentElement).getPropertyValue("--chart-bar").trim()
+    };
 }
 
-function showSurvey() {
-    startScreen.style.display = "none";
-    surveyContainer.style.display = "block";
-    resultsContainer.style.display = "none";
-    fieldSelectionContainer.style.display = "none";
-    chartsContainer.style.display = "none";
+function show(view) {
+    Object.entries(views).forEach(([name, element]) => {
+        element.hidden = name !== view;
+    });
 }
 
-function showResults() {
-    startScreen.style.display = "none";
-    surveyContainer.style.display = "none";
-    resultsContainer.style.display = "block";
-    fieldSelectionContainer.style.display = "none";
-    chartsContainer.style.display = "none";
+// The label of a button that also holds an icon
+function setButtonText(button, text) {
+    button.querySelector(".text").textContent = text;
 }
 
-function showFieldSelection() {
-    startScreen.style.display = "none";
-    surveyContainer.style.display = "none";
-    resultsContainer.style.display = "none";
-    fieldSelectionContainer.style.display = "block";
-    chartsContainer.style.display = "none";
+function setBadge(kind, text) {
+    badge.className = `badge ${kind}`;
+    badge.textContent = text;
 }
 
-function showCharts() {
-    startScreen.style.display = "none";
-    surveyContainer.style.display = "none";
-    resultsContainer.style.display = "none";
-    fieldSelectionContainer.style.display = "none";
-    chartsContainer.style.display = "block";
+// SurveyJS theme by the OS preference, on the page's own background
+function applySurveyTheme() {
+    if (!currentSurvey) return;
+    const theme = darkMode.matches ? SurveyTheme.DefaultDark : SurveyTheme.DefaultLight;
+    currentSurvey.applyTheme({
+        ...theme,
+        cssVariables: { ...theme.cssVariables, "--sjs-general-backcolor-dim": "transparent" }
+    });
 }
 
 function renderSurvey(surveyJson) {
     const survey = new Survey.Model(surveyJson);
     currentSurvey = survey;
 
-    survey.applyTheme(SurveyTheme.SharpLight);
-
-    if (surveyContainer) {
-        survey.render(surveyContainer);
-    } else {
-        console.error("Survey container not found");
-    }
+    applySurveyTheme();
+    survey.render(surveyContainer);
+    surveyIntro.textContent = [survey.title, survey.description].filter(Boolean).join(": ");
 
     survey.onComplete.add((result) => {
         pending = { id: newSubmissionId(), data: result.data };
@@ -232,7 +238,7 @@ function sendPending() {
     }, ACK_TIMEOUT);
     // The start screen shows how sending goes
     updateStartScreen();
-    showStartScreen();
+    show("start");
 }
 
 function confirmStored(id) {
@@ -250,24 +256,35 @@ function setStartMessage(text, isError = false) {
     startMessage.classList.toggle("error", isError);
 }
 
-// Start button, retry button and message from the submission state
+// Start button, retry button, badge and message from the submission state
 function updateStartScreen() {
     if (!currentSurvey) return;
 
     const done = submitted && !allowRetake;
     startSurveyBtn.disabled = Boolean(pending) || done;
-    startSurveyBtn.textContent = done ? "Submitted ✓" : "Start Survey";
-    retryBtn.style.display = pending && sendFailed ? "block" : "none";
+    setButtonText(startSurveyBtn, done ? "Submitted ✓" : "Start Survey");
+    retryBtn.hidden = !(pending && sendFailed);
 
     if (pending && sendFailed) {
+        setBadge("off", "not received");
         setStartMessage("The station did not receive your answer.", true);
     } else if (pending) {
+        setBadge("wait", "sending…");
         setStartMessage("Sending your answer to the station…");
-    } else if (submitted && allowRetake) {
-        setStartMessage("Submitted ✓");
+    } else if (submitted) {
+        setBadge("on", "submitted");
+        setStartMessage(allowRetake ? "Submitted ✓" : "");
     } else {
+        setBadge("wait", "not submitted");
         setStartMessage("");
     }
+}
+
+// The survey can't be shown: say why and what to change
+function showConfigError(button, badgeText, message) {
+    setButtonText(startSurveyBtn, button);
+    setBadge("off", badgeText);
+    setStartMessage(message, true);
 }
 
 function analyzeResults(results) {
@@ -318,6 +335,7 @@ function createChart(containerId, questionKey, analysis) {
     document.getElementById(containerId).appendChild(canvas);
 
     const ctx = canvas.getContext('2d');
+    const theme = applyChartTheme();
 
     if (analysis.type === 'categorical') {
         // Create pie chart for single-choice answers
@@ -332,7 +350,7 @@ function createChart(containerId, questionKey, analysis) {
                     data: data,
                     backgroundColor: chartColors(labels.length),
                     borderWidth: 2,
-                    borderColor: '#fff'
+                    borderColor: theme.background
                 }]
             },
             options: {
@@ -360,14 +378,14 @@ function createChart(containerId, questionKey, analysis) {
     } else if (analysis.type === 'multiple') {
         // Bar per option, most chosen first (answers can pick several, so no pie)
         const options = Object.keys(analysis.counts).sort((a, b) => analysis.counts[b] - analysis.counts[a]);
-        activeCharts.push(createBarChart(ctx, options, options.map(option => analysis.counts[option])));
+        activeCharts.push(createBarChart(ctx, options, options.map(option => analysis.counts[option]), theme.bar));
 
     } else if (analysis.type === 'rating') {
         // Bar per value of the scale, unused values included
         const scale = ratingScale(questionKey);
         const extra = Object.keys(analysis.counts).filter(value => !scale.includes(value)).sort((a, b) => a - b);
         const labels = [...scale, ...extra];
-        activeCharts.push(createBarChart(ctx, labels, labels.map(value => analysis.counts[value] || 0)));
+        activeCharts.push(createBarChart(ctx, labels, labels.map(value => analysis.counts[value] || 0), theme.bar));
 
     } else if (analysis.type === 'numerical') {
         // Create histogram for numerical data
@@ -400,11 +418,11 @@ function createChart(containerId, questionKey, analysis) {
             });
         }
 
-        activeCharts.push(createBarChart(ctx, binLabels, bins));
+        activeCharts.push(createBarChart(ctx, binLabels, bins, theme.bar));
     }
 }
 
-function createBarChart(ctx, labels, data) {
+function createBarChart(ctx, labels, data, color) {
     return new Chart(ctx, {
         type: 'bar',
         data: {
@@ -412,9 +430,7 @@ function createBarChart(ctx, labels, data) {
             datasets: [{
                 label: 'Responses',
                 data: data,
-                backgroundColor: '#36A2EB',
-                borderColor: '#1E88E5',
-                borderWidth: 1
+                backgroundColor: color
             }]
         },
         options: {
@@ -437,10 +453,25 @@ function createBarChart(ctx, labels, data) {
     });
 }
 
+// Back button and title of a result view, plus optional action buttons
+function viewBar(backAction, backLabel, title, actions = "") {
+    return `
+        <div class="view-bar">
+            <button class="back-btn" data-action="${backAction}">
+                <span class="oi" data-glyph="arrow-left" aria-hidden="true"></span>${backLabel}
+            </button>
+            <h2>${title}</h2>
+            ${actions ? `<div class="actions">${actions}</div>` : ""}
+        </div>
+    `;
+}
+
 function showFieldSelectionInterface() {
+    const bar = viewBar("show-results", "Back to Results", "Select Fields for Chart Generation");
+
     if (!currentResults || currentResults.length === 0) {
-        fieldSelectionContainer.innerHTML = '<button class="back-btn" data-action="show-results">← Back to Results</button><div class="no-charts">No data available for analysis.</div>';
-        showFieldSelection();
+        fieldSelectionContainer.innerHTML = bar + '<p class="empty">No data available for analysis.</p>';
+        show("fields");
         return;
     }
 
@@ -449,23 +480,21 @@ function showFieldSelectionInterface() {
     selectableFields = Object.keys(availableFields).filter(key => availableFields[key].values.length > 0);
 
     if (selectableFields.length === 0) {
-        fieldSelectionContainer.innerHTML = '<button class="back-btn" data-action="show-results">← Back to Results</button><div class="no-charts">No chartable fields found in survey results.</div>';
-        showFieldSelection();
+        fieldSelectionContainer.innerHTML = bar + '<p class="empty">No chartable fields found in survey results.</p>';
+        show("fields");
         return;
     }
 
-    let html = '<button class="back-btn" data-action="show-results">← Back to Results</button>';
+    let html = bar;
     html += `
-        <div class="field-selection-container">
-            <h2>Select Fields for Chart Generation</h2>
-            <p>Choose which survey fields you want to visualize. Charts will be automatically generated based on the data type of each field.</p>
+        <p class="muted">Choose which survey fields you want to visualize. The chart type follows the question type.</p>
 
-            <div class="selection-actions">
-                <button class="select-all-btn" data-action="select-all">Select All</button>
-                <button class="select-none-btn" data-action="select-none">Select None</button>
-            </div>
+        <div class="selection-actions">
+            <button data-action="select-all">Select All</button>
+            <button data-action="select-none">Select None</button>
+        </div>
 
-            <div class="field-list">
+        <div class="field-list">
     `;
 
     selectableFields.forEach((fieldKey, index) => {
@@ -503,16 +532,15 @@ function showFieldSelectionInterface() {
     });
 
     html += `
-            </div>
-            <p class="selection-error" role="alert"></p>
-            <button class="generate-selected-charts-btn" data-action="generate-selected">
-                Generate Charts for Selected Fields
-            </button>
         </div>
+        <p class="selection-error" role="alert"></p>
+        <button data-action="generate-selected">
+            <span class="oi" data-glyph="bar-chart" aria-hidden="true"></span>Generate Charts for Selected Fields
+        </button>
     `;
 
     fieldSelectionContainer.innerHTML = html;
-    showFieldSelection();
+    show("fields");
 }
 
 function selectAllFields(selectAll) {
@@ -543,9 +571,8 @@ function generateChartsForFields(selectedFields) {
     activeCharts.forEach(chart => chart.destroy());
     activeCharts = [];
 
-    let html = '<button class="back-btn" data-action="show-field-selection">← Back to Field Selection</button>';
-    html += '<h2>Survey Results Charts</h2>';
-    html += `<p style="text-align: center; color: #ecf0f1; margin-bottom: 20px;">Generated from ${currentResults.length} responses • ${selectedFields.length} fields selected</p>`;
+    let html = viewBar("show-field-selection", "Back to Field Selection", "Survey Results Charts");
+    html += `<p class="muted">Generated from ${currentResults.length} responses • ${selectedFields.length} fields selected</p>`;
 
     selectedFields.forEach((fieldKey, index) => {
         html += `
@@ -559,17 +586,14 @@ function generateChartsForFields(selectedFields) {
     });
 
     chartsContainer.innerHTML = html;
-    showCharts();
+    show("charts");
 
-    // Create charts after DOM is updated
-    setTimeout(() => {
-        selectedFields.forEach((fieldKey, index) => {
-            const questionAnalysis = availableFields[fieldKey];
-            if (questionAnalysis) {
-                createChart(`chart-container-${index}`, fieldKey, questionAnalysis);
-            }
-        });
-    }, 100);
+    selectedFields.forEach((fieldKey, index) => {
+        const questionAnalysis = availableFields[fieldKey];
+        if (questionAnalysis) {
+            createChart(`chart-container-${index}`, fieldKey, questionAnalysis);
+        }
+    });
 }
 
 function displayResultsPage(page = 1) {
@@ -579,26 +603,23 @@ function displayResultsPage(page = 1) {
     const endIndex = Math.min(startIndex + RESULTS_PER_PAGE, totalResults);
     const pageResults = currentResults.slice(startIndex, endIndex);
 
-    let html = '<button class="back-btn" data-action="show-start">← Back</button>';
-
-    // Add Generate Charts button if there are results
-    if (totalResults > 0) {
-        html += '<button class="generate-charts-btn" data-action="field-selection">📊 Generate Charts</button>';
-    }
-
-    html += '<h2>Survey Results</h2>';
-    html += `<p style="text-align: center; color: #ecf0f1; margin-bottom: 20px;">Classroom: ${escapeHtml(Edrys.class_id)}</p>`;
+    // Generate Charts only if there are results
+    const chartsButton = totalResults > 0
+        ? '<button data-action="field-selection"><span class="oi" data-glyph="bar-chart" aria-hidden="true"></span>Generate Charts</button>'
+        : "";
+    let html = viewBar("show-start", "Back", "Survey Results", chartsButton);
+    html += `<p class="muted">Classroom: <code>${escapeHtml(Edrys.class_id)}</code></p>`;
 
     if (otherResultsCount > 0) {
         const answers = otherResultsCount === 1 ? "1 answer" : `${otherResultsCount} answers`;
-        html += `<p class="other-results">${answers} to other surveys or earlier versions of this survey in this classroom are not shown.</p>`;
+        html += `<p class="muted other-results">${answers} to other surveys or earlier versions of this survey in this classroom are not shown.</p>`;
     }
 
     if (totalResults === 0) {
-        html += '<div class="no-results">No results for this survey yet.</div>';
+        html += '<p class="empty">No results for this survey yet.</p>';
     } else {
         // Pagination info
-        html += `<div class="pagination-info">Showing ${startIndex + 1}-${endIndex} of ${totalResults} results (Page ${page} of ${totalPages})</div>`;
+        html += `<p class="muted pagination-info">Showing ${startIndex + 1}-${endIndex} of ${totalResults} results (Page ${page} of ${totalPages})</p>`;
 
         // Results list
         html += '<div class="results-list">';
@@ -620,35 +641,33 @@ function displayResultsPage(page = 1) {
 
         // Pagination controls
         if (totalPages > 1) {
-            html += '<div class="pagination-controls">';
+            html += '<nav class="pagination-controls" aria-label="Result pages">';
 
             // Previous button
             if (page > 1) {
-                html += `<button class="pagination-btn" data-action="page" data-page="${page - 1}">‹ Previous</button>`;
+                html += `<button data-action="page" data-page="${page - 1}"><span class="oi" data-glyph="chevron-left" aria-hidden="true"></span>Previous</button>`;
             }
 
             // Page numbers
-            html += '<div class="page-numbers">';
             for (let i = 1; i <= totalPages; i++) {
                 if (i === page) {
-                    html += `<button class="pagination-btn active">${i}</button>`;
+                    html += `<button aria-current="page" disabled>${i}</button>`;
                 } else {
-                    html += `<button class="pagination-btn" data-action="page" data-page="${i}">${i}</button>`;
+                    html += `<button data-action="page" data-page="${i}">${i}</button>`;
                 }
             }
-            html += '</div>';
 
             // Next button
             if (page < totalPages) {
-                html += `<button class="pagination-btn" data-action="page" data-page="${page + 1}">Next ›</button>`;
+                html += `<button data-action="page" data-page="${page + 1}">Next<span class="oi" data-glyph="chevron-right" aria-hidden="true"></span></button>`;
             }
 
-            html += '</div>';
+            html += '</nav>';
         }
     }
 
     resultsContainer.innerHTML = html;
-    showResults();
+    show("results");
 }
 
 function goToPage(page) {
@@ -680,8 +699,9 @@ async function loadAndDisplayResults() {
 
     } catch (error) {
         console.error("Error loading results:", error);
-        resultsContainer.innerHTML = '<button class="back-btn" data-action="show-start">← Back</button><div class="no-results">Error loading results.</div>';
-        showResults();
+        resultsContainer.innerHTML = viewBar("show-start", "Back", "Survey Results") +
+            `<p class="empty">Error loading results: ${escapeHtml(error.message)}</p>`;
+        show("results");
     }
 }
 
@@ -699,18 +719,20 @@ startSurveyBtn.addEventListener('click', () => {
     if (currentSurvey.state === "completed") {
         currentSurvey.clear(true, true);
     }
-    showSurvey();
+    show("survey");
 });
 
 retryBtn.addEventListener('click', sendPending);
 
 loadResultsBtn.addEventListener('click', loadAndDisplayResults);
 
+darkMode.addEventListener('change', applySurveyTheme);
+
 // Buttons rendered into the result, field selection and chart views
 const actions = {
-    "show-start": showStartScreen,
-    "show-results": showResults,
-    "show-field-selection": showFieldSelection,
+    "show-start": () => show("start"),
+    "show-results": () => show("results"),
+    "show-field-selection": () => show("fields"),
     "field-selection": showFieldSelectionInterface,
     "select-all": () => selectAllFields(true),
     "select-none": () => selectAllFields(false),
@@ -727,15 +749,8 @@ document.body.addEventListener('click', (event) => {
 
 
 Edrys.onReady(() => {
-    /*const dbg = Edrys.importDebug();
-    Edrys.debug = false;
-    dbg('Survey Module Ready');*/
-    console.log("Survey module is ready");
-
-    // Show load results button only for station role
-    if (Edrys.role === "station") {
-        loadResultsBtn.style.display = "block";
-    }
+    // Only the station stores results, so only it can list them
+    loadResultsBtn.hidden = Edrys.role !== "station";
 
     const stationConfig = Edrys.module.stationConfig || {};
     allowRetake = stationConfig.allowRetake === true;
@@ -745,14 +760,14 @@ Edrys.onReady(() => {
         surveyConfig = readSurveyConfig();
     } catch (error) {
         console.error("Error parsing survey configuration:", error);
-        startSurveyBtn.textContent = "Survey Configuration Error";
-        setStartMessage(`The "survey" station setting is not valid JSON: ${error.message}`, true);
+        showConfigError("Survey Configuration Error", "configuration error",
+            `The "survey" station setting is not valid JSON: ${error.message}`);
         return;
     }
 
     if (!surveyConfig) {
-        startSurveyBtn.textContent = "No Survey Configuration";
-        setStartMessage('Add a SurveyJS JSON as "survey" in the module\'s station settings.', true);
+        showConfigError("No Survey Configuration", "not configured",
+            'Add a SurveyJS JSON as "survey" in the module\'s station settings.');
         return;
     }
 
@@ -761,8 +776,8 @@ Edrys.onReady(() => {
         renderSurvey(surveyConfig);
     } catch (error) {
         console.error("Error rendering survey:", error);
-        startSurveyBtn.textContent = "Survey Configuration Error";
-        setStartMessage(`The survey could not be shown: ${error.message}`, true);
+        showConfigError("Survey Configuration Error", "configuration error",
+            `The survey could not be shown: ${error.message}`);
         return;
     }
 

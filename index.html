@@ -10,8 +10,8 @@
       content="A survey module for Edrys Labs, allowing users to submit feedback and suggestions."
     />
     <meta name="show-in" content="station" />
-    <meta 
-      name="module-config" 
+    <meta
+      name="module-config"
       content="{
         'stationConfig': {
           'survey': {
@@ -23,7 +23,7 @@
             'hint': 'Let a user take the survey again after submitting (Off: one answer per user)'
           },
         },
-      }" 
+      }"
     />
 
     <script src="https://edrys-labs.github.io/module/edrys.js"></script>
@@ -31,41 +31,57 @@
     <!-- Dexie.js for IndexedDB -->
     <script src="https://unpkg.com/dexie@4.4.6/dist/dexie.js"></script>
 
-    <script
-      defer
-      src="https://edrys-labs.github.io/module/vendor/alpine.min.js"
-    ></script>
-
     <link
       rel="stylesheet"
       href="https://edrys-labs.github.io/module/vendor/water.min.css"
     />
+    <link
+      rel="stylesheet"
+      href="https://edrys-labs.github.io/module/vendor/open-iconic/css/open-iconic.min.css"
+    />
 
-    <link rel="stylesheet" href="./style.css" />
-
-    <!-- SurveyJS Core and UI -->
+    <!-- SurveyJS Core and UI, light and dark theme (picked by the OS preference) -->
     <link href="https://unpkg.com/survey-core@2.5.44/survey-core.min.css" type="text/css" rel="stylesheet">
     <script type="text/javascript" src="https://unpkg.com/survey-core@2.5.44/survey.core.min.js"></script>
     <script type="text/javascript" src="https://unpkg.com/survey-js-ui@2.5.44/survey-js-ui.min.js"></script>
-    <script type="text/javascript" src="https://unpkg.com/survey-core@2.5.44/themes/sharp-light.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/survey-core@2.5.44/themes/default-light.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/survey-core@2.5.44/themes/default-dark.min.js"></script>
 
     <!-- Chart.js for creating charts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+
+    <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <div id="startScreen" class="start-screen">
-      <div class="button-container">
-        <h2>Your Feedback</h2>
-        <button id="startSurveyBtn" class="survey-btn primary" disabled>Loading…</button>
-        <p id="startMessage" class="start-message" role="status"></p>
-        <button id="retryBtn" class="survey-btn primary" style="display: none;">Retry</button>
-        <button id="loadResultsBtn" class="survey-btn secondary" style="display: none;">Load Survey Results</button>
+    <header class="header">
+      <h1 class="title">Survey</h1>
+      <div class="status">
+        <span id="badge" class="badge wait">loading…</span>
       </div>
-    </div>
-    <div id="surveyContainer" style="display: none;"></div>
-    <div id="resultsContainer" style="display: none;"></div>
-    <div id="fieldSelectionContainer" style="display: none;"></div>
-    <div id="chartsContainer" style="display: none;"></div>
+      <div class="controls">
+        <button id="startSurveyBtn" disabled>
+          <span class="oi" data-glyph="pencil" aria-hidden="true"></span><span class="text">Loading…</span>
+        </button>
+        <button id="retryBtn" hidden>
+          <span class="oi" data-glyph="reload" aria-hidden="true"></span>Retry
+        </button>
+        <button id="loadResultsBtn" hidden>
+          <span class="oi" data-glyph="list-rich" aria-hidden="true"></span>Results
+        </button>
+      </div>
+    </header>
+    <p id="startMessage" class="message" role="status"></p>
+
+    <main>
+      <section id="startScreen">
+        <h2>Your Feedback</h2>
+        <p id="surveyIntro" class="muted"></p>
+      </section>
+      <section id="surveyContainer" hidden></section>
+      <section id="resultsContainer" hidden></section>
+      <section id="fieldSelectionContainer" hidden></section>
+      <section id="chartsContainer" hidden></section>
+    </main>
 
     <script src="./app.js"></script>
   </body>
