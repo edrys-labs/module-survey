@@ -40,8 +40,65 @@ function isAnswers(data) {
     return data !== null && typeof data === "object" && !Array.isArray(data);
 }
 
+function surveyQuestion(fieldKey) {
+    return currentSurvey ? currentSurvey.getQuestionByName(fieldKey) : null;
+}
+
 function fieldTitle(fieldKey) {
+    const question = surveyQuestion(fieldKey);
+    if (question && question.title) return question.title;
     return fieldKey.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+}
+
+// How the answers to a question are charted, from its SurveyJS type:
+// 'categorical' (pie), 'multiple' (bar per option), 'rating' (bar per scale value),
+// 'numerical' (histogram), or null when they can't be charted (free text, matrices, ...)
+function chartKind(fieldKey, value) {
+    const question = surveyQuestion(fieldKey);
+    if (question) {
+        switch (question.getType()) {
+            case "radiogroup":
+            case "dropdown":
+            case "boolean":
+            case "imagepicker":
+                return Array.isArray(value) ? "multiple" : "categorical";
+            case "checkbox":
+            case "tagbox":
+                return "multiple";
+            case "rating":
+                return "rating";
+            case "text":
+                return ["number", "range"].includes(question.inputType) ? "numerical" : null;
+            default:
+                return null;
+        }
+    }
+
+    // Not in the current survey (e.g. an answer to an older version): guess from the value
+    if (typeof value === "number") return "numerical";
+    if (Array.isArray(value)) return "multiple";
+    if (typeof value === "string" || typeof value === "boolean") return "categorical";
+    return null;
+}
+
+// All values of a rating question's scale, so unused values show as 0
+function ratingScale(fieldKey) {
+    const question = surveyQuestion(fieldKey);
+    if (!question) return [];
+    if (question.rateValues && question.rateValues.length > 0) {
+        return question.rateValues.map(item => String(item.value));
+    }
+    const scale = [];
+    const step = question.rateStep > 0 ? question.rateStep : 1;
+    for (let value = question.rateMin; value <= question.rateMax && scale.length < 100; value += step) {
+        scale.push(String(value));
+    }
+    return scale;
+}
+
+// One distinct colour per category
+function chartColors(count) {
+    return Array.from({ length: count }, (_, i) => `hsl(${Math.round(i * 360 / count)}, 65%, 55%)`);
 }
 
 function showStartScreen() {
@@ -117,31 +174,33 @@ function analyzeResults(results) {
         const data = result.data;
 
         Object.keys(data).forEach(questionKey => {
+            const value = data[questionKey];
+            const kind = chartKind(questionKey, value);
+            if (!kind) return;
+
             if (!analysis[questionKey]) {
                 analysis[questionKey] = {
-                    type: 'unknown',
+                    type: kind,
                     values: [],
                     counts: {}
                 };
             }
+            const field = analysis[questionKey];
+            // Mixed answers (e.g. after the survey changed): keep those of the first kind
+            if (field.type !== kind) return;
 
-            const value = data[questionKey];
-            analysis[questionKey].values.push(value);
-
-            // Determine question type and count responses
-            if (typeof value === 'string' || typeof value === 'boolean') {
-                analysis[questionKey].type = 'categorical';
-                const key = String(value);
-                analysis[questionKey].counts[key] = (analysis[questionKey].counts[key] || 0) + 1;
-            } else if (typeof value === 'number') {
-                analysis[questionKey].type = 'numerical';
-            } else if (Array.isArray(value)) {
-                analysis[questionKey].type = 'multiple';
-                value.forEach(item => {
-                    const key = String(item);
-                    analysis[questionKey].counts[key] = (analysis[questionKey].counts[key] || 0) + 1;
-                });
+            if (kind === 'numerical') {
+                const number = Number(value);
+                if (Number.isFinite(number)) field.values.push(number);
+                return;
             }
+
+            field.values.push(value);
+            const items = Array.isArray(value) ? value : [value];
+            items.forEach(item => {
+                const key = String(item);
+                field.counts[key] = (field.counts[key] || 0) + 1;
+            });
         });
     });
 
@@ -155,14 +214,10 @@ function createChart(containerId, questionKey, analysis) {
 
     const ctx = canvas.getContext('2d');
 
-    if (analysis.type === 'categorical' || analysis.type === 'multiple') {
-        // Create pie chart for categorical data
+    if (analysis.type === 'categorical') {
+        // Create pie chart for single-choice answers
         const labels = Object.keys(analysis.counts);
         const data = Object.values(analysis.counts);
-        const colors = [
-            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
-        ];
 
         const chart = new Chart(ctx, {
             type: 'pie',
@@ -170,7 +225,7 @@ function createChart(containerId, questionKey, analysis) {
                 labels: labels,
                 datasets: [{
                     data: data,
-                    backgroundColor: colors.slice(0, labels.length),
+                    backgroundColor: chartColors(labels.length),
                     borderWidth: 2,
                     borderColor: '#fff'
                 }]
@@ -197,63 +252,84 @@ function createChart(containerId, questionKey, analysis) {
 
         activeCharts.push(chart);
 
+    } else if (analysis.type === 'multiple') {
+        // Bar per option, most chosen first (answers can pick several, so no pie)
+        const options = Object.keys(analysis.counts).sort((a, b) => analysis.counts[b] - analysis.counts[a]);
+        activeCharts.push(createBarChart(ctx, options, options.map(option => analysis.counts[option])));
+
+    } else if (analysis.type === 'rating') {
+        // Bar per value of the scale, unused values included
+        const scale = ratingScale(questionKey);
+        const extra = Object.keys(analysis.counts).filter(value => !scale.includes(value)).sort((a, b) => a - b);
+        const labels = [...scale, ...extra];
+        activeCharts.push(createBarChart(ctx, labels, labels.map(value => analysis.counts[value] || 0)));
+
     } else if (analysis.type === 'numerical') {
         // Create histogram for numerical data
         const values = analysis.values;
         const min = Math.min(...values);
         const max = Math.max(...values);
         const range = max - min;
-        const binCount = Math.min(10, Math.max(3, Math.ceil(Math.sqrt(values.length))));
-        const binSize = range / binCount;
 
-        const bins = [];
-        const binLabels = [];
+        let bins = [];
+        let binLabels = [];
 
-        for (let i = 0; i < binCount; i++) {
-            const binStart = min + i * binSize;
-            const binEnd = min + (i + 1) * binSize;
-            bins[i] = 0;
-            binLabels[i] = `${binStart.toFixed(1)}-${binEnd.toFixed(1)}`;
+        if (range === 0) {
+            // All answers are equal: one bar
+            bins = [values.length];
+            binLabels = [String(min)];
+        } else {
+            const binCount = Math.min(10, Math.max(3, Math.ceil(Math.sqrt(values.length))));
+            const binSize = range / binCount;
+
+            for (let i = 0; i < binCount; i++) {
+                const binStart = min + i * binSize;
+                const binEnd = min + (i + 1) * binSize;
+                bins[i] = 0;
+                binLabels[i] = `${binStart.toFixed(1)}-${binEnd.toFixed(1)}`;
+            }
+
+            values.forEach(value => {
+                const binIndex = Math.min(Math.floor((value - min) / binSize), binCount - 1);
+                bins[binIndex]++;
+            });
         }
 
-        values.forEach(value => {
-            const binIndex = Math.min(Math.floor((value - min) / binSize), binCount - 1);
-            bins[binIndex]++;
-        });
+        activeCharts.push(createBarChart(ctx, binLabels, bins));
+    }
+}
 
-        const chart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: binLabels,
-                datasets: [{
-                    label: 'Frequency',
-                    data: bins,
-                    backgroundColor: '#36A2EB',
-                    borderColor: '#1E88E5',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        display: false
+function createBarChart(ctx, labels, data) {
+    return new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Responses',
+                data: data,
+                backgroundColor: '#36A2EB',
+                borderColor: '#1E88E5',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
                     }
                 }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
             }
-        });
-
-        activeCharts.push(chart);
-    }
+        }
+    });
 }
 
 function showFieldSelectionInterface() {
@@ -265,7 +341,7 @@ function showFieldSelectionInterface() {
 
     // Analyze available fields
     availableFields = analyzeResults(currentResults);
-    selectableFields = Object.keys(availableFields).filter(key => availableFields[key].type !== 'unknown');
+    selectableFields = Object.keys(availableFields).filter(key => availableFields[key].values.length > 0);
 
     if (selectableFields.length === 0) {
         fieldSelectionContainer.innerHTML = '<button class="back-btn" data-action="show-results">← Back to Results</button><div class="no-charts">No chartable fields found in survey results.</div>';
@@ -305,6 +381,10 @@ function showFieldSelectionInterface() {
             case 'multiple':
                 const totalOptions = Object.keys(field.counts).length;
                 typeDescription = `Multiple Choice (${totalOptions} options)`;
+                break;
+            case 'rating':
+                const scale = ratingScale(fieldKey);
+                typeDescription = scale.length > 0 ? `Rating (${scale[0]} - ${scale[scale.length - 1]})` : 'Rating';
                 break;
         }
 
@@ -379,7 +459,7 @@ function generateChartsForFields(selectedFields) {
     setTimeout(() => {
         selectedFields.forEach((fieldKey, index) => {
             const questionAnalysis = availableFields[fieldKey];
-            if (questionAnalysis && questionAnalysis.type !== 'unknown') {
+            if (questionAnalysis) {
                 createChart(`chart-container-${index}`, fieldKey, questionAnalysis);
             }
         });
