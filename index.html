@@ -18,6 +18,10 @@
             'type': code-area,
             'hint': 'Enter your survey configuration here (JSON format)',
           },
+          'allowRetake': {
+            'type': 'boolean',
+            'hint': 'Let a user take the survey again after submitting (Off: one answer per user)'
+          },
         },
       }" 
     />
@@ -52,7 +56,9 @@
     <div id="startScreen" class="start-screen">
       <div class="button-container">
         <h2>Your Feedback</h2>
-        <button id="startSurveyBtn" class="survey-btn primary">Start Survey</button>
+        <button id="startSurveyBtn" class="survey-btn primary" disabled>Loading…</button>
+        <p id="startMessage" class="start-message" role="status"></p>
+        <button id="retryBtn" class="survey-btn primary" style="display: none;">Retry</button>
         <button id="loadResultsBtn" class="survey-btn secondary" style="display: none;">Load Survey Results</button>
       </div>
     </div>

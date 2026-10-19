@@ -5,9 +5,15 @@ const fieldSelectionContainer = document.getElementById("fieldSelectionContainer
 const chartsContainer = document.getElementById("chartsContainer");
 const startSurveyBtn = document.getElementById("startSurveyBtn");
 const loadResultsBtn = document.getElementById("loadResultsBtn");
+const retryBtn = document.getElementById("retryBtn");
+const startMessage = document.getElementById("startMessage");
 
-// Message other peers send when they complete the survey: { data: <SurveyJS result> }
+// Message peers send when they complete the survey: { id, data: <SurveyJS result> }
 const SUBJECT_COMPLETED = "surveyCompleted";
+// The station's reply to the sender once it stored a result: { id }
+const SUBJECT_STORED = "surveyStored";
+// Without a reply in this time the answer counts as not received
+const ACK_TIMEOUT = 5000;
 const DB_NAME = "edrysSurveyDB";
 const RESULTS_PER_PAGE = 10;
 
@@ -23,6 +29,14 @@ let availableFields = {};
 // Field keys listed in the field selection; checkboxes refer to them by index
 let selectableFields = [];
 let currentPage = 1;
+
+// Submission state of this user, kept per survey with Edrys.setItem
+let surveyKey = "";       // identifies the configured survey (hash of its JSON)
+let allowRetake = false;
+let pending = null;       // { id, data }: sent, not yet confirmed by the station
+let submitted = false;
+let sendFailed = false;
+let ackTimer = null;
 
 // Answers and their keys come from peers: escape everything put into HTML
 function escapeHtml(value) {
@@ -154,15 +168,98 @@ function renderSurvey(surveyJson) {
     }
 
     survey.onComplete.add((result) => {
-        Edrys.sendMessage(SUBJECT_COMPLETED, {
-            data: result.data
-        });
-
-        // Show completion message and return to start screen
-        setTimeout(() => {
-            showStartScreen();
-        }, 3000);
+        pending = { id: newSubmissionId(), data: result.data };
+        saveSubmissionState();
+        sendPending();
     });
+}
+
+// djb2: a short, stable key for the configured survey
+function hashString(text) {
+    let hash = 5381;
+    for (let i = 0; i < text.length; i++) {
+        hash = ((hash << 5) + hash + text.charCodeAt(i)) | 0;
+    }
+    return (hash >>> 0).toString(36);
+}
+
+// crypto.randomUUID needs a secure context, which a module origin may not be
+function newSubmissionId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+function storageKey(name) {
+    return `survey.${surveyKey}.${name}`;
+}
+
+// localStorage can be unavailable (blocked site data): then the state lasts until reload
+function loadSubmissionState() {
+    try {
+        pending = JSON.parse(Edrys.getItem(storageKey("pending")) || "null");
+        submitted = Edrys.getItem(storageKey("submitted")) === "true";
+    } catch (error) {
+        console.warn("Could not read the submission state:", error);
+    }
+}
+
+function saveSubmissionState() {
+    try {
+        Edrys.setItem(storageKey("pending"), pending ? JSON.stringify(pending) : "");
+        Edrys.setItem(storageKey("submitted"), submitted ? "true" : "");
+    } catch (error) {
+        console.warn("Could not save the submission state:", error);
+    }
+}
+
+// Send the pending answer; the station confirms with SUBJECT_STORED
+function sendPending() {
+    if (!pending) return;
+    sendFailed = false;
+    Edrys.sendMessage(SUBJECT_COMPLETED, { id: pending.id, data: pending.data });
+
+    clearTimeout(ackTimer);
+    ackTimer = setTimeout(() => {
+        sendFailed = true;
+        updateStartScreen();
+    }, ACK_TIMEOUT);
+    // The start screen shows how sending goes
+    updateStartScreen();
+    showStartScreen();
+}
+
+function confirmStored(id) {
+    if (!pending || pending.id !== id) return;
+    clearTimeout(ackTimer);
+    pending = null;
+    submitted = true;
+    sendFailed = false;
+    saveSubmissionState();
+    updateStartScreen();
+}
+
+function setStartMessage(text, isError = false) {
+    startMessage.textContent = text;
+    startMessage.classList.toggle("error", isError);
+}
+
+// Start button, retry button and message from the submission state
+function updateStartScreen() {
+    if (!currentSurvey) return;
+
+    const done = submitted && !allowRetake;
+    startSurveyBtn.disabled = Boolean(pending) || done;
+    startSurveyBtn.textContent = done ? "Submitted ✓" : "Start Survey";
+    retryBtn.style.display = pending && sendFailed ? "block" : "none";
+
+    if (pending && sendFailed) {
+        setStartMessage("The station did not receive your answer.", true);
+    } else if (pending) {
+        setStartMessage("Sending your answer to the station…");
+    } else if (submitted && allowRetake) {
+        setStartMessage("Submitted ✓");
+    } else {
+        setStartMessage("");
+    }
 }
 
 function analyzeResults(results) {
@@ -399,6 +496,7 @@ function showFieldSelectionInterface() {
 
     html += `
             </div>
+            <p class="selection-error" role="alert"></p>
             <button class="generate-selected-charts-btn" data-action="generate-selected">
                 Generate Charts for Selected Fields
             </button>
@@ -425,7 +523,7 @@ function generateSelectedCharts() {
     });
 
     if (selectedFields.length === 0) {
-        alert('Please select at least one field to generate charts.');
+        fieldSelectionContainer.querySelector(".selection-error").textContent = "Select at least one field to generate charts.";
         return;
     }
 
@@ -577,14 +675,16 @@ function readSurveyConfig() {
     return typeof survey === "string" ? JSON.parse(survey) : survey;
 }
 
-// Event listeners
+// Event listeners (the start button is only enabled once a survey is rendered)
 startSurveyBtn.addEventListener('click', () => {
-    if (currentSurvey) {
-        showSurvey();
-    } else {
-        alert('No survey configuration found. Please check the module configuration.');
+    // With allowRetake, start a fresh copy of the completed survey
+    if (currentSurvey.state === "completed") {
+        currentSurvey.clear(true, true);
     }
+    showSurvey();
 });
+
+retryBtn.addEventListener('click', sendPending);
 
 loadResultsBtn.addEventListener('click', loadAndDisplayResults);
 
@@ -619,25 +719,51 @@ Edrys.onReady(() => {
         loadResultsBtn.style.display = "block";
     }
 
+    const stationConfig = Edrys.module.stationConfig || {};
+    allowRetake = stationConfig.allowRetake === true;
+
+    let surveyConfig;
     try {
-        const surveyConfig = readSurveyConfig();
-        if (surveyConfig) {
-            renderSurvey(surveyConfig);
-        } else {
-            startSurveyBtn.disabled = true;
-            startSurveyBtn.textContent = "No Survey Configuration";
-        }
+        surveyConfig = readSurveyConfig();
     } catch (error) {
         console.error("Error parsing survey configuration:", error);
-        startSurveyBtn.disabled = true;
         startSurveyBtn.textContent = "Survey Configuration Error";
+        setStartMessage(`The "survey" station setting is not valid JSON: ${error.message}`, true);
+        return;
+    }
+
+    if (!surveyConfig) {
+        startSurveyBtn.textContent = "No Survey Configuration";
+        setStartMessage('Add a SurveyJS JSON as "survey" in the module\'s station settings.', true);
+        return;
+    }
+
+    try {
+        surveyKey = hashString(JSON.stringify(surveyConfig));
+        renderSurvey(surveyConfig);
+    } catch (error) {
+        console.error("Error rendering survey:", error);
+        startSurveyBtn.textContent = "Survey Configuration Error";
+        setStartMessage(`The survey could not be shown: ${error.message}`, true);
+        return;
+    }
+
+    loadSubmissionState();
+    updateStartScreen();
+    // An answer that was never confirmed (e.g. the page was closed): send it again
+    if (pending) sendPending();
+});
+
+Edrys.onMessage(({ from, subject, body }) => {
+    if (subject === SUBJECT_STORED) {
+        if (body && typeof body.id === "string") confirmStored(body.id);
+    } else if (subject === SUBJECT_COMPLETED && Edrys.role === "station") {
+        // Only store survey results in a station
+        storeResult(from, body);
     }
 });
 
-Edrys.onMessage(async ({ from, subject, body }) => {
-    // Only store survey results in a station
-    if (subject !== SUBJECT_COMPLETED || Edrys.role !== "station") return;
-
+async function storeResult(from, body) {
     // Any peer can send this subject: keep only well-formed results
     if (!isAnswers(body?.data)) {
         console.warn("Ignoring malformed survey result from", from, body);
@@ -647,15 +773,20 @@ Edrys.onMessage(async ({ from, subject, body }) => {
     const username = from.split('_')[0];
     const stationName = Edrys.liveUser.room;
     const classroomId = Edrys.class_id;
+    // A retry resends the same id, so put() keeps one copy. Senders without an id
+    // (older module versions) get a new entry per message.
+    const hasId = typeof body.id === "string";
+    const id = hasId ? `${username}-${body.id}` : `${username}-${stationName}-${Date.now()}`;
 
     try {
-        await db.results.add({
-            id: `${username}-${stationName}-${Date.now()}`,
+        await db.results.put({
+            id: id,
             timestamp: new Date(),
             data: body.data,
             classroomId: classroomId
         });
+        if (hasId) Edrys.sendMessage(SUBJECT_STORED, { id: body.id }, from);
     } catch (error) {
         console.error("Error saving survey result:", error);
     }
-});
+}

@@ -78,6 +78,33 @@ html, body {
     box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
 }
 
+.survey-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+    transform: none;
+}
+
+.start-message {
+    max-width: 300px;
+    margin: 10px auto 0;
+    color: #555;
+    font-size: 14px;
+}
+
+.start-message:empty {
+    display: none;
+}
+
+.start-message.error,
+.selection-error {
+    color: #b8384a;
+}
+
+.selection-error {
+    text-align: center;
+    margin: 0;
+}
+
 /* Make the survey container fill the entire viewport */
 #surveyContainer {
     width: 100%;
