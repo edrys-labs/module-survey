@@ -442,6 +442,14 @@ html, body {
     margin: 60px auto 0 auto;
 }
 
+.other-results {
+    text-align: center;
+    color: #ecf0f1;
+    opacity: 0.8;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
 /* Pagination styles */
 .pagination-info {
     text-align: center;

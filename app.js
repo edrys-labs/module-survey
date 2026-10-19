@@ -8,7 +8,7 @@ const loadResultsBtn = document.getElementById("loadResultsBtn");
 const retryBtn = document.getElementById("retryBtn");
 const startMessage = document.getElementById("startMessage");
 
-// Message peers send when they complete the survey: { id, data: <SurveyJS result> }
+// Message peers send when they complete the survey: { id, surveyId, data: <SurveyJS result> }
 const SUBJECT_COMPLETED = "surveyCompleted";
 // The station's reply to the sender once it stored a result: { id }
 const SUBJECT_STORED = "surveyStored";
@@ -21,9 +21,16 @@ const db = new Dexie(DB_NAME);
 db.version(1).stores({
     results: "id, timestamp, data, classroomId"
 });
+// Results are kept per survey (surveyId: hash of the survey JSON). Rows from
+// version 1 have no surveyId and only count as "other surveys".
+db.version(2).stores({
+    results: "id, timestamp, classroomId, [classroomId+surveyId]"
+});
 
 let currentSurvey = null;
 let currentResults = [];
+// Results in this classroom that belong to other surveys or earlier versions
+let otherResultsCount = 0;
 let activeCharts = [];
 let availableFields = {};
 // Field keys listed in the field selection; checkboxes refer to them by index
@@ -174,7 +181,8 @@ function renderSurvey(surveyJson) {
     });
 }
 
-// djb2: a short, stable key for the configured survey
+// djb2: a short, stable key for the configured survey. Also identifies its
+// results, so two surveys in a class (or an edited one) don't mix.
 function hashString(text) {
     let hash = 5381;
     for (let i = 0; i < text.length; i++) {
@@ -215,7 +223,7 @@ function saveSubmissionState() {
 function sendPending() {
     if (!pending) return;
     sendFailed = false;
-    Edrys.sendMessage(SUBJECT_COMPLETED, { id: pending.id, data: pending.data });
+    Edrys.sendMessage(SUBJECT_COMPLETED, { id: pending.id, surveyId: surveyKey, data: pending.data });
 
     clearTimeout(ackTimer);
     ackTimer = setTimeout(() => {
@@ -581,8 +589,13 @@ function displayResultsPage(page = 1) {
     html += '<h2>Survey Results</h2>';
     html += `<p style="text-align: center; color: #ecf0f1; margin-bottom: 20px;">Classroom: ${escapeHtml(Edrys.class_id)}</p>`;
 
+    if (otherResultsCount > 0) {
+        const answers = otherResultsCount === 1 ? "1 answer" : `${otherResultsCount} answers`;
+        html += `<p class="other-results">${answers} to other surveys or earlier versions of this survey in this classroom are not shown.</p>`;
+    }
+
     if (totalResults === 0) {
-        html += '<div class="no-results">No survey results found for this classroom.</div>';
+        html += '<div class="no-results">No results for this survey yet.</div>';
     } else {
         // Pagination info
         html += `<div class="pagination-info">Showing ${startIndex + 1}-${endIndex} of ${totalResults} results (Page ${page} of ${totalPages})</div>`;
@@ -647,11 +660,16 @@ async function loadAndDisplayResults() {
     try {
         const currentClassroomId = Edrys.class_id;
         const results = await db.results
+            .where('[classroomId+surveyId]')
+            .equals([currentClassroomId, surveyKey])
+            .toArray();
+        const allCount = await db.results
             .where('classroomId')
             .equals(currentClassroomId)
-            .toArray();
+            .count();
 
         currentResults = results;
+        otherResultsCount = allCount - results.length;
 
         // Sort by timestamp in descending order (newest first)
         results.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -770,6 +788,11 @@ async function storeResult(from, body) {
         return;
     }
 
+    // Each survey module in the room gets every answer: store only those to
+    // this survey. Answers without a surveyId (older versions) count as this one.
+    if (!surveyKey) return;
+    if (body.surveyId !== undefined && body.surveyId !== surveyKey) return;
+
     const username = from.split('_')[0];
     const stationName = Edrys.liveUser.room;
     const classroomId = Edrys.class_id;
@@ -783,7 +806,8 @@ async function storeResult(from, body) {
             id: id,
             timestamp: new Date(),
             data: body.data,
-            classroomId: classroomId
+            classroomId: classroomId,
+            surveyId: surveyKey
         });
         if (hasId) Edrys.sendMessage(SUBJECT_STORED, { id: body.id }, from);
     } catch (error) {
