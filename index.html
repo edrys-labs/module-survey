@@ -42,10 +42,14 @@
     />
     <link
       rel="stylesheet"
+      href="https://edrys-labs.github.io/module/edrys-module.css"
+    />
+    <link
+      rel="stylesheet"
       href="https://edrys-labs.github.io/module/vendor/open-iconic/css/open-iconic.min.css"
     />
 
-    <!-- SurveyJS Core and UI, light and dark theme (picked by the OS preference) -->
+    <!-- SurveyJS Core and UI, light and dark theme (picked by the classroom's theme) -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/survey-core@2.5.44/survey-core.min.css"
@@ -83,16 +87,12 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
-    <header class="header">
-      <h1 class="title">Survey</h1>
-      <div class="status">
-        <span id="badge" class="badge wait">loading…</span>
-      </div>
-      <div class="controls">
-        <button id="loadResultsBtn" hidden>
-          <span class="oi" data-glyph="list-rich" aria-hidden="true"></span>Results
-        </button>
-      </div>
+    <header class="edrys-toolbar">
+      <span id="badge" class="edrys-pill" role="status">loading…</span>
+      <span class="edrys-spacer"></span>
+      <button id="loadResultsBtn" hidden>
+        <span class="oi" data-glyph="list-rich" aria-hidden="true"></span>Results
+      </button>
     </header>
 
     <main>

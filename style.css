@@ -1,18 +1,8 @@
-/* Colours on top of water.css, which follows the OS light/dark preference.
-   Text and surfaces inherit from it; only these are the module's own. */
+/* Colours, fonts, the toolbar and the status pill come from edrys-module.css,
+   in the classroom's light or dark theme. */
 :root {
-    --line: rgba(127, 127, 127, 0.25);
-    --surface: rgba(127, 127, 127, 0.08);
-    --error-text: #b8384a;
-    /* read by app.js for the bar charts */
-    --chart-bar: #3a86c8;
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --error-text: #ff8a99;
-        --chart-bar: #5aa6e6;
-    }
+    --line: var(--edrys-line);
+    --surface: var(--edrys-footer);
 }
 
 /* `hidden` must win over the display rules below */
@@ -23,8 +13,18 @@
 /* fill the iframe instead of water.css's centred 800px column */
 body {
     max-width: 100%;
+    min-height: 100vh;
     margin: 0;
-    padding: 0.5rem 1rem 1rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 18px;
 }
 
 .oi {
@@ -32,70 +32,20 @@ body {
 }
 
 .muted {
-    opacity: 0.7;
-    font-size: small;
+    color: var(--edrys-muted);
+    font-size: 12px;
 }
 
-/* header row from the design baseline */
-.header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 1rem;
-    margin-bottom: 0.5rem;
-}
-
-.title {
-    margin: 0;
-    font-size: 1.25em;
-    line-height: 1.2;
-}
-
-.status {
-    font-size: small;
-}
-
-.badge {
-    display: inline-block;
-    padding: 0.1rem 0.5rem;
-    border-radius: 999px;
-    font-weight: bold;
-    color: #fff;
-}
-
-/* dark enough for white text to clear WCAG AA */
-.badge.on {
-    background-color: #1f7a45;
-}
-
-.badge.off {
-    background-color: #b8384a;
-}
-
-.badge.wait {
-    background-color: #6b6b6b;
-}
-
-.controls {
-    margin-left: auto;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: small;
-}
-
-.controls button {
-    margin: 0;
+.edrys-toolbar button {
     white-space: nowrap;
 }
 
-/* The start view: the survey's intro card, centred in what the header leaves */
+/* The start view: the survey's intro card, centred in what the toolbar leaves */
 #startScreen {
+    flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: calc(100vh - 4rem);
 }
 
 .intro-card {
@@ -103,7 +53,7 @@ body {
     max-width: 28rem;
     padding: 1.5rem 1rem;
     border: 1px solid var(--line);
-    border-radius: 6px;
+    border-radius: 8px;
     text-align: center;
 }
 
@@ -131,16 +81,10 @@ body {
     margin: 0;
 }
 
-/* the main action: a little larger than the other buttons */
-.intro-actions .primary {
-    padding: 0.6rem 1.5rem;
-    font-weight: bold;
-}
-
 /* sending status and errors */
 .message {
     margin: 0.5rem 0 0;
-    font-size: small;
+    font-size: 12px;
 }
 
 .message:empty {
@@ -149,12 +93,12 @@ body {
 
 .message.error,
 .selection-error {
-    color: var(--error-text);
+    color: var(--edrys-on-error-pill);
 }
 
 /* the survey sits on the page background (see applySurveyTheme) */
 #surveyContainer {
-    margin: 0 -1rem;
+    margin: -16px -18px;
 }
 
 /* water.css styles every input[type=button] with a more specific selector than
@@ -171,6 +115,13 @@ body {
 #surveyContainer input.sd-btn--action {
     background-color: var(--sjs-primary-backcolor);
     color: var(--sjs-primary-forecolor);
+}
+
+/* SurveyJS draws its own fields; the inputs inside them stay bare */
+#surveyContainer .sd-dropdown input,
+#surveyContainer .sd-tagbox input {
+    border: 0;
+    background: transparent;
 }
 
 #surveyContainer input.sd-btn--action:hover {
@@ -192,11 +143,11 @@ body {
     font-size: 1.1em;
 }
 
-/* same size as the header controls */
+/* same size as the toolbar buttons */
 .view-bar button,
 .selection-actions button,
 .pagination-controls button {
-    font-size: small;
+    font-size: 12px;
 }
 
 .view-bar button {
@@ -210,9 +161,9 @@ body {
 .empty {
     padding: 1rem;
     border: 1px dashed var(--line);
-    border-radius: 6px;
+    border-radius: 8px;
     text-align: center;
-    opacity: 0.8;
+    color: var(--edrys-muted);
 }
 
 /* Results list */
@@ -220,7 +171,7 @@ body {
     margin-bottom: 0.5rem;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--line);
-    border-radius: 6px;
+    border-radius: 8px;
 }
 
 .result-item h3 {
@@ -230,7 +181,7 @@ body {
 
 .result-item p {
     margin: 0;
-    font-size: small;
+    font-size: 12px;
 }
 
 .result-item details {
@@ -240,7 +191,7 @@ body {
 .result-item pre {
     margin: 0.25rem 0 0;
     overflow-x: auto;
-    font-size: small;
+    font-size: 12px;
 }
 
 .pagination-controls {
@@ -303,13 +254,13 @@ body {
 }
 
 .field-info {
-    font-size: small;
-    opacity: 0.7;
+    font-size: 12px;
+    color: var(--edrys-muted);
 }
 
 .selection-error {
     margin: 0 0 0.5rem;
-    font-size: small;
+    font-size: 12px;
 }
 
 .selection-error:empty {
@@ -321,7 +272,7 @@ body {
     margin-bottom: 0.75rem;
     padding: 0.75rem;
     border: 1px solid var(--line);
-    border-radius: 6px;
+    border-radius: 8px;
 }
 
 .chart-container h3 {

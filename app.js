@@ -21,7 +21,12 @@ const views = {
     charts: chartsContainer
 };
 
+// The classroom's theme (edrys.js puts it on <html>), the OS preference when opened on its own
 const darkMode = window.matchMedia("(prefers-color-scheme: dark)");
+function isDark() {
+    const theme = document.documentElement.dataset.theme;
+    return theme ? theme === "dark" : darkMode.matches;
+}
 
 // Message peers send when they complete the survey: { id, surveyId, data: <SurveyJS result> }
 const SUBJECT_COMPLETED = "surveyCompleted";
@@ -45,6 +50,8 @@ db.version(2).stores({
 let currentSurvey = null;
 let currentResults = [];
 let activeCharts = [];
+// the fields of the charts on screen
+let chartFields = null;
 let availableFields = {};
 // Field keys listed in the field selection; checkboxes refer to them by index
 let selectableFields = [];
@@ -135,14 +142,15 @@ function chartColors(count) {
     return Array.from({ length: count }, (_, i) => `hsl(${Math.round(i * 360 / count)}, 65%, 55%)`);
 }
 
-// Chart text, grid and slice borders follow water.css's light or dark theme
+// Chart text, grid and slice borders in the module's colours
 function applyChartTheme() {
-    const page = getComputedStyle(document.body);
-    Chart.defaults.color = page.color;
-    Chart.defaults.borderColor = "rgba(127, 127, 127, 0.25)";
+    const colors = getComputedStyle(document.documentElement);
+    const color = (name) => colors.getPropertyValue(name).trim();
+    Chart.defaults.color = color("--edrys-text");
+    Chart.defaults.borderColor = color("--edrys-line");
     return {
-        background: page.backgroundColor,
-        bar: getComputedStyle(document.documentElement).getPropertyValue("--chart-bar").trim()
+        background: color("--edrys-bg"),
+        bar: color("--edrys-primary")
     };
 }
 
@@ -157,16 +165,17 @@ function setButtonText(button, text) {
     button.querySelector(".text").textContent = text;
 }
 
+// kind: "on", "off" or "wait"
 function setBadge(kind, text) {
-    badge.className = `badge ${kind}`;
+    badge.className = `edrys-pill ${{ on: "ok", off: "error", wait: "" }[kind]}`;
     badge.textContent = text;
 }
 
-// SurveyJS colours taken from water.css's variables (and the module's --line), so the
-// survey looks like the rest of the page and follows its light/dark switch
+// SurveyJS colours taken from the page's variables, so the survey looks like
+// the rest of the module and follows its light/dark switch
 const SURVEY_COLORS = {
     "--sjs-font-family": "inherit",
-    "--sjs-corner-radius": "6px",
+    "--sjs-corner-radius": "7px",
     "--sjs-general-backcolor": "var(--background-alt)",
     "--sjs-general-backcolor-dark": "var(--background)",
     "--sjs-general-backcolor-dim": "transparent",
@@ -176,14 +185,14 @@ const SURVEY_COLORS = {
     "--sjs-general-forecolor-light": "var(--text-muted)",
     "--sjs-general-dim-forecolor": "var(--text-main)",
     "--sjs-general-dim-forecolor-light": "var(--text-muted)",
-    "--sjs-primary-backcolor": "var(--links)",
-    "--sjs-primary-backcolor-dark": "var(--links)",
-    "--sjs-primary-backcolor-light": "color-mix(in srgb, var(--links) 15%, transparent)",
-    "--sjs-primary-forecolor": "var(--background-body)",
-    "--sjs-primary-forecolor-light": "color-mix(in srgb, var(--background-body) 25%, transparent)",
-    "--sjs-secondary-backcolor": "var(--links)",
-    "--sjs-secondary-backcolor-light": "color-mix(in srgb, var(--links) 10%, transparent)",
-    "--sjs-secondary-backcolor-semi-light": "color-mix(in srgb, var(--links) 25%, transparent)",
+    "--sjs-primary-backcolor": "var(--edrys-primary)",
+    "--sjs-primary-backcolor-dark": "var(--edrys-primary)",
+    "--sjs-primary-backcolor-light": "color-mix(in srgb, var(--edrys-primary) 15%, transparent)",
+    "--sjs-primary-forecolor": "var(--edrys-on-primary)",
+    "--sjs-primary-forecolor-light": "color-mix(in srgb, var(--edrys-on-primary) 25%, transparent)",
+    "--sjs-secondary-backcolor": "var(--edrys-primary)",
+    "--sjs-secondary-backcolor-light": "color-mix(in srgb, var(--edrys-primary) 10%, transparent)",
+    "--sjs-secondary-backcolor-semi-light": "color-mix(in srgb, var(--edrys-primary) 25%, transparent)",
     "--sjs-border-default": "var(--line)",
     "--sjs-border-light": "var(--line)",
     "--sjs-border-inside": "var(--line)",
@@ -193,10 +202,10 @@ const SURVEY_COLORS = {
     "--sjs-font-surveytitle-color": "var(--text-bright)"
 };
 
-// SurveyJS's light or dark theme by the OS preference, in the page's colours
+// SurveyJS's light or dark theme, in the page's colours
 function applySurveyTheme() {
     if (!currentSurvey) return;
-    const theme = darkMode.matches ? SurveyTheme.DefaultDark : SurveyTheme.DefaultLight;
+    const theme = isDark() ? SurveyTheme.DefaultDark : SurveyTheme.DefaultLight;
     currentSurvey.applyTheme({
         ...theme,
         cssVariables: { ...theme.cssVariables, ...SURVEY_COLORS }
@@ -613,6 +622,8 @@ function generateSelectedCharts() {
 }
 
 function generateChartsForFields(selectedFields) {
+    chartFields = selectedFields;
+
     // Destroy existing charts
     activeCharts.forEach(chart => chart.destroy());
     activeCharts = [];
@@ -768,7 +779,15 @@ retryBtn.addEventListener('click', sendPending);
 
 loadResultsBtn.addEventListener('click', loadAndDisplayResults);
 
-darkMode.addEventListener('change', applySurveyTheme);
+// Charts take their colours when drawn: draw open ones again
+function applyTheme() {
+    applySurveyTheme();
+    if (!chartsContainer.hidden && chartFields) generateChartsForFields(chartFields);
+}
+
+darkMode.addEventListener('change', applyTheme);
+// onTheme is missing in edrys.js before the themes came
+Edrys.onTheme?.(applyTheme);
 
 // Buttons rendered into the result, field selection and chart views
 const actions = {

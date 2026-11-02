@@ -30,7 +30,7 @@ setting.
   | `text` with `inputType: number` / `range` | histogram                                |
   | free text, comments, matrices, …          | not charted                              |
 
-The module follows the light or dark mode of the operating system.
+The module follows the classroom's light or dark theme (the operating system's when opened on its own).
 
 ## Configuration
 
@@ -102,7 +102,7 @@ Loaded from CDNs, with pinned versions and subresource integrity:
 - [SurveyJS](https://surveyjs.io/) 2.5 (core, UI, default light and dark theme)
 - [Chart.js](https://www.chartjs.org/) 4.5
 - [Dexie.js](https://dexie.org/) 4.4 for IndexedDB
-- edrys.js, water.css and open-iconic from `edrys-labs.github.io/module`
+- edrys.js, water.css, edrys-module.css and open-iconic from `edrys-labs.github.io/module`
 
 ## Development
 
