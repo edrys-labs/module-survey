@@ -876,7 +876,8 @@ async function storeResult(from, body) {
     // (older module versions) get a new entry per message.
     const hasId = typeof body.id === "string";
     const id = hasId ? `${username}-${body.id}` : `${username}-${stationName}-${Date.now()}`;
-    // The name edrys-Lite shows for the sender (a short id, or the station's name)
+    // Who edrys-Lite shows the sender as: a short id or the station's name, after
+    // a name they chose, which isn't unique
     const sender = Edrys.liveClass?.users?.[from];
 
     try {
@@ -886,7 +887,7 @@ async function storeResult(from, body) {
             data: body.data,
             classroomId: classroomId,
             surveyId: surveyKey,
-            sender: sender ? sender.displayName : undefined,
+            sender: sender ? [sender.username, sender.displayName].filter(Boolean).join(' · ') : undefined,
             senderRole: sender ? sender.role : undefined
         });
         if (hasId) Edrys.sendMessage(SUBJECT_STORED, { id: body.id }, from);
